@@ -46,6 +46,38 @@ public class MainViewController {
         return random.nextDouble(100);
     }
 
+    private final AnimationTimer animationTimer = new AnimationTimer() {
+
+        @Override
+        public void handle(long now) {
+
+            if(cancelExecution.get())
+            {
+                animationTimer.stop();
+                return;
+            }
+
+            if(cancelExecution.get() && animationTimer != null) {
+                animationTimer.stop();
+                return;
+            }
+
+            var size = mainMap.getMapDimentions();
+            var totalNumberOfAgents = (int)(size.getX() * size.getY() * coverageByAgents);
+            if(resetingSimulation.get()){
+                simulationState.setText("Generowanie nowych agentów: " + generationStep.get() + " z " + totalNumberOfAgents);
+                return;
+            }
+
+            var susceptible = susceptibleTotal.get();
+            var infectious = infectiousTotal.get();
+            var recovered = recoveredTotal.get();
+            var dead = deadTotal.get();
+
+            simulationState.setText(" Wszyscy: " + totalNumberOfAgents + "; Podatni: " + susceptible + "; Zarażeni: " + infectious + ";\n Ozdrowieni: " + recovered + "; Martwi: " + dead);
+        }
+    };
+
     @FXML
     public void initialize() {
 
@@ -53,6 +85,8 @@ public class MainViewController {
         var size = mainMap.getMapDimentions();
 
         var thread = new Thread(() -> {
+            if(cancelExecution.get())
+                return;
 
             int currentAgents = 0;
             int previousAgents = 1;
@@ -80,6 +114,9 @@ public class MainViewController {
             }
 
             while(true){
+
+                if(cancelExecution.get())
+                    return;
 
                 if(resetingSimulation.get() || simulationStep.get())
                     continue;
@@ -190,26 +227,6 @@ public class MainViewController {
 
         thread.start();
 
-        var animationTimer = new AnimationTimer() {
-
-            @Override
-            public void handle(long now) {
-                var size = mainMap.getMapDimentions();
-                var totalNumberOfAgents = (int)(size.getX() * size.getY() * coverageByAgents);
-                if(resetingSimulation.get()){
-                    simulationState.setText("Generowanie nowych agentów: " + generationStep.get() + " z " + totalNumberOfAgents);
-                    return;
-                }
-
-                var susceptible = susceptibleTotal.get();
-                var infectious = infectiousTotal.get();
-                var recovered = recoveredTotal.get();
-                var dead = deadTotal.get();
-
-                simulationState.setText(" Wszyscy: " + totalNumberOfAgents + "; Podatni: " + susceptible + "; Zarażeni: " + infectious + ";\n Ozdrowieni: " + recovered + "; Martwi: " + dead);
-            }
-        };
-
         animationTimer.start();
 
     }
@@ -228,11 +245,15 @@ public class MainViewController {
     private final AtomicBoolean resetingSimulation = new AtomicBoolean(false);
     private final AtomicBoolean simulationStep = new AtomicBoolean(false);
     private final AtomicInteger generationStep = new AtomicInteger(0);
+    private final AtomicBoolean cancelExecution = new AtomicBoolean(false);
 
 
     private void resetSimulation() {
 
         var thread = new Thread(() -> {
+            if(cancelExecution.get())
+                return;
+
             while(simulationStep.get()){
 
             }
@@ -276,5 +297,10 @@ public class MainViewController {
             resetingSimulation.set(false);
         });
         thread.start();
+    }
+
+    public void stopThreads() {
+        cancelExecution.set(true);
+        mainMap.stop();
     }
 }

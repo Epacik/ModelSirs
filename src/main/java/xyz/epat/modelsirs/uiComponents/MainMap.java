@@ -12,6 +12,7 @@ import xyz.epat.modelsirs.agents.Agent;
 import xyz.epat.modelsirs.agents.AgentState;
 
 import java.text.DecimalFormat;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 
@@ -126,31 +127,41 @@ public class MainMap extends Region {
             translateByStartingPoint = translateBy;
         });
     }
+
+
+    private final AnimationTimer animationTimer = new AnimationTimer() {
+
+        @Override
+        public void handle(long now) {
+            if(cancelExecution.get())
+            {
+                animationTimer.stop();
+                return;
+            }
+
+            var context = canvas.getGraphicsContext2D();
+
+            scaleFactor = calculateScaleFactor();
+
+            drawBackground(context);
+
+            calculateAndSetMapStartingPoint();
+
+            drawMapBackground(context);
+
+            drawAgents(context);
+
+            drawInfo(context);
+
+            //drawCrosshair(context);
+        }
+    };
+
     /**
      * Start drawing the map
      */
     private void startAnimation(){
-        var animationTimer = new AnimationTimer() {
 
-            @Override
-            public void handle(long now) {
-                var context = canvas.getGraphicsContext2D();
-
-                scaleFactor = calculateScaleFactor();
-
-                drawBackground(context);
-
-                calculateAndSetMapStartingPoint();
-
-                drawMapBackground(context);
-
-                drawAgents(context);
-
-                drawInfo(context);
-
-                //drawCrosshair(context);
-            }
-        };
         animationTimer.start();
     }
 
@@ -373,5 +384,10 @@ public class MainMap extends Region {
 
     public void lazySetAgents(Agent[][] agents) {
         this.agents.set(agents);
+    }
+
+    private final AtomicBoolean cancelExecution = new AtomicBoolean(false);
+    public void stop() {
+        cancelExecution.set(true);
     }
 }
