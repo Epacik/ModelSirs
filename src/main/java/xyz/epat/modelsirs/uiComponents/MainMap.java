@@ -383,7 +383,7 @@ public class MainMap extends Region {
     }
 
     public void lazySetAgents(Agent[][] agents) {
-        this.agents.set(agents);
+        this.agents.lazySet(agents);
     }
 
     private final AtomicBoolean cancelExecution = new AtomicBoolean(false);

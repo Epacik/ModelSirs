@@ -10,11 +10,9 @@ import xyz.epat.modelsirs.agents.AgentState;
 import xyz.epat.modelsirs.uiComponents.MainMap;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 public class MainViewController {
     @FXML
@@ -28,7 +26,7 @@ public class MainViewController {
     private static final Logger logger = LoggerFactory.getLogger(MainMap.class);
 
     private final int infectionRadius = 2;
-    private final double chanceToGetInfected = 5;
+    private final double chanceToGetInfected = 20;
     private final double chanceToDie = 2;
     private final double chanceToRecover = 5;
     private final double chanceToGetSusceptible = 5;
@@ -130,15 +128,16 @@ public class MainViewController {
                 int deadTotal = 0;
                 int recoveredTotal = 0;
 
+                var previous = agents[previousAgents];
+                var current = agents[currentAgents];
+
                 for (int x = 0; x < agents[0].length; x++) {
                     for (int y = 0; y < agents[0][0].length; y++) {
-                        var previous = agents[previousAgents][x][y];
-                        var current = agents[currentAgents][x][y];
 
-                        if(previous == null || current == null)
+                        if(previous[x][y] == null || current[x][y] == null)
                             continue;
 
-                        var state = previous.getState();
+                        var state = previous[x][y].getState();
                         switch (state){
 
                             case Susceptible -> {
@@ -153,39 +152,38 @@ public class MainViewController {
                                         if(testX < 0 || testY < 0 || testX >= agents[0].length || testY >= agents[0][0].length)
                                             continue;
 
-                                        var testedAgent = agents[previousAgents][testX][testY];
+                                        var testedAgent = previous[testX][testY];
                                         if(testedAgent == null || testedAgent.getState() != AgentState.Infectious)
                                             continue;
 
                                         if(nextPercentage() < chanceToGetInfected)
-                                            current.setState(AgentState.Infectious);
+                                            current[x][y].setState(AgentState.Infectious);
                                     }
                                 }
                             }
                             case Infectious -> {
                                 if (nextPercentage() < chanceToDie) {
-                                    current.setState(AgentState.Dead);
+                                    current[x][y].setState(AgentState.Dead);
                                 } else if (nextPercentage() < chanceToRecover) {
-                                    current.setState(AgentState.Recovered);
+                                    current[x][y].setState(AgentState.Recovered);
                                 }
                             }
                             case Recovered -> {
                                 if (nextPercentage() < chanceToGetSusceptible) {
-                                    current.setState(AgentState.Susceptible);
+                                    current[x][y].setState(AgentState.Susceptible);
                                 }
                             }
                         }
                     }
                 }
                 // count agents per state
-                for (int x = 0; x < agents[currentAgents].length; x++) {
-                    for (int y = 0; y < agents[currentAgents][x].length; y++) {
-                        var agent = agents[currentAgents][x][y];
-                        if(agent == null){
+                for (Agent[] value : current) {
+                    for (Agent agent : value) {
+                        if (agent == null) {
                             continue;
                         }
                         var state = agent.getState();
-                        switch (state){
+                        switch (state) {
                             case Susceptible -> susceptibleTotal++;
                             case Infectious -> infectiousTotal++;
                             case Recovered -> recoveredTotal++;
@@ -200,7 +198,7 @@ public class MainViewController {
                 this.recoveredTotal.set(recoveredTotal);
                 this.deadTotal.set(deadTotal);
 
-                mainMap.lazySetAgents(agents[currentAgents]);
+                mainMap.lazySetAgents(previous);
 
                 var xSize = agents[currentAgents].length;
                 var ySize = agents[currentAgents][0].length;

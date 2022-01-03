@@ -14,6 +14,7 @@ public class SirsModelApplication extends Application {
 
         //loading main window of the program from FXML
 
+        // that fxml
         FXMLLoader fxmlLoader = new FXMLLoader(SirsModelApplication.class.getResource("main-view.fxml"));
         Scene scene = new Scene(fxmlLoader.load(), 500, 450);
         stage.setTitle("Model SIRS v1.0 - Damian Kuśmierz");
