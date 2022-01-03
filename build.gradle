@@ -29,6 +29,14 @@ javafx {
     modules = ['javafx.controls', 'javafx.fxml']
 }
 
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'xyz.epat.modelsirs.SirsModelApplication'
+        )
+    }
+}
+
 dependencies {
     implementation('org.kordamp.bootstrapfx:bootstrapfx-core:0.4.0')
     implementation('org.slf4j:slf4j-api:1.7.32')

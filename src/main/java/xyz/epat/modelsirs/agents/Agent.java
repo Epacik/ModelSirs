@@ -20,12 +20,19 @@ public class Agent {
             modifiersBackup.add(modifier);
         }
     }
+
     private final String name;
     private float age;
     private AgentState state = AgentState.Susceptible;
     private final Vector<AgentModifier> modifiers = new Vector<AgentModifier>();
     private final Vector<AgentModifier> modifiersBackup = new Vector<AgentModifier>();
-    private Point2D position = new Point2D(12, 32);
+    //private Point2D position = new Point2D(12, 32);
+
+    public Agent copy() {
+        var agent = new Agent(this.name, this.age, this.state, this.modifiers.toArray(new AgentModifier[this.modifiers.size()]));
+        //agent.setPosition(this.position);
+        return agent;
+    }
 
     public String getName() { return name; }
     public float getAge() { return age; }
@@ -69,13 +76,17 @@ public class Agent {
         return true;
     }
 
-    public Point2D getPosition() {
-        return position;
-    }
-
-    public void setPosition(Point2D position) {
-        this.position = position;
-    }
+//    public Point2D getPosition() {
+//        return position;
+//    }
+//
+//    public void setPosition(Point2D position) {
+//        this.position = position;
+//    }
+//
+//    public void setPosition(double x, double y){
+//        this.position = new Point2D(x, y);
+//    }
 
 
     /**
@@ -116,5 +127,13 @@ public class Agent {
         }
 
         return  modifiers;
+    }
+
+    public void addToAge(long n) {
+        age += n;
+    }
+
+    public void setState(AgentState newState) {
+        state = newState;
     }
 }

@@ -8,124 +8,208 @@ import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import xyz.epat.modelsirs.agents.Agent;
+import xyz.epat.modelsirs.agents.AgentState;
 
-import java.util.Random;
-import java.util.concurrent.atomic.AtomicLong;
+import java.text.DecimalFormat;
 import java.util.concurrent.atomic.AtomicReference;
 
 
+/**
+ * A field that
+ */
 public class MainMap extends Region {
 
+    public final double infoHeight = 20;
+    public final double crossHairSize = 40;
     private static final Logger logger = LoggerFactory.getLogger(MainMap.class);
     private final Canvas canvas;
 
-    private int mapHeight = 400;
-    private int mapWidth = 450;
+    private int mapHeight = 450;
+    private int mapWidth = 900;
 
-    private boolean [][] agents;
+    /**
+     *
+     */
+    private final AtomicReference<Agent[][]> agents = new AtomicReference(new Agent[0][0]);
 
     private Point2D mapStart;
     private double scaleFactor = 1;
-    private int zoomLevel = 4;
-    // 0.25, 0.33, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5
+    /**
+     * By how much the map should be zoomed
+     * Levels: (level - percent)
+     *  0 - 100%;
+     *  1 - 150%;
+     *  2 - 200%;
+     *  3 - 300%;
+     *  4 - 400%;
+     *  5 - 500%;
+     *  6 - 600%;
+     *  7 - 700%;
+     *  8 - 800%;
+     *  9 - 900%;
+     *  100 - 1000%;
+     */
+    private int zoomLevel = 0; // zoom levels (level 0 = 100%): 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10
 
-    private Point2D translateBy = new Point2D(0,0);
-    private Point2D translateByStartingPoint = new Point2D(0,0);
+    // used for panning
+    /**
+     * by how much drawn map should be translated in x and y axis
+     */
+    private Point2D translateBy = Point2D.ZERO;
+    /**
+     * value is updated on Left Mouse Button release so the map can be moved while dragging without it flying to the moon
+     */
+    private Point2D translateByStartingPoint = Point2D.ZERO;
 
     public MainMap(){
         super();
 
-        prefHeight(300);
-        prefWidth(400);
-
+        // create a canvas, bind width and height to the whole component and show it
         canvas = new Canvas();
         canvas.widthProperty().bind(widthProperty());
         canvas.heightProperty().bind(heightProperty());
 
+        getChildren().add(canvas);
+
+        //set some default values 
+        prefHeight(300);
+        prefWidth(400);
         canvas.prefWidth(300);
         canvas.prefHeight(400);
 
-        getChildren().add(canvas);
-
+        // idk if that's necessary
         super.layoutChildren();
 
-        agents = new boolean[mapWidth][mapHeight];
+        startAnimation();
 
-        for (int w = 0; w < mapWidth; w++) {
-            for (int h = 0; h < mapHeight; h++) {
-                agents[w][h] = (w + h) % 4 == 0;
-            }
-        }
-
-        draw();
-
+        /// --------------------------------------------
+        /// |||||||||||||||| EVENTS ||||||||||||||||||||
+        /// --------------------------------------------
+        
+        // Zooming in and out
         setOnScroll(se -> {
-
             if((se.getDeltaY() < 0 || se.getDeltaX() < 0) && zoomLevel > 0 ){
+                logger.debug("Zooming out");
                 zoomLevel--;
+
+                translateBy = snapMapBack(translateBy);
+                translateByStartingPoint = snapMapBack(translateByStartingPoint);
             }
-            else if((se.getDeltaY() > 0 || se.getDeltaX() > 0) && zoomLevel < 9){
+            else if((se.getDeltaY() > 0 || se.getDeltaX() > 0) && zoomLevel < 10){
+                logger.debug("Zooming in");
                 zoomLevel++;
+
+                translateBy = snapMapBack(translateBy);
+                translateByStartingPoint = snapMapBack(translateByStartingPoint);
             }
         });
 
-        AtomicReference<Point2D> point = new AtomicReference<Point2D>(new Point2D(0, 0));
+        // Panning
+        // there's probably a much better way of doing that, but idc
+
+        // just a reference point, from where user is dragging
+        var point = new AtomicReference<Point2D>(new Point2D(0, 0));
         setOnMousePressed(me -> {
+            logger.debug("start a map pan");
             point.set(new Point2D(me.getX(), me.getY()));
         });
 
         setOnMouseDragged(me -> {
-            var delta = new Point2D(me.getX(), me.getY()).subtract(point.get());
-            translateBy = translateByStartingPoint.add(delta);
+            logger.debug("dragging ");
+            var delta = translateByStartingPoint.add(new Point2D(me.getX(), me.getY()).subtract(point.get()));
 
+            translateBy = snapMapBack(delta);
         });
-
 
         setOnMouseReleased(me -> {
             translateByStartingPoint = translateBy;
-
         });
-//        setOnMouseEntered(me -> getScene().setCursor(Cursor.OPEN_HAND));
-//        setOnMouseExited(me -> getScene().setCursor(Cursor.DEFAULT));
-//        setOnMousePressed(me -> getScene().setCursor(Cursor.CLOSED_HAND));
     }
-
-
-
-    private void draw(){
-        var atomicLong = new AtomicLong(0);
-        var rnd = new Random();
-
+    /**
+     * Start drawing the map
+     */
+    private void startAnimation(){
         var animationTimer = new AnimationTimer() {
 
             @Override
             public void handle(long now) {
-
-                var canvasWidth = canvas.getWidth();
-                var canvasHeight = canvas.getHeight();
                 var context = canvas.getGraphicsContext2D();
 
                 scaleFactor = calculateScaleFactor();
 
-                drawBackground(context, canvasWidth, canvasHeight);
-                
-                drawMapBackground(context, canvasWidth, canvasHeight);
+                drawBackground(context);
 
+                calculateAndSetMapStartingPoint();
 
-                drawZoom(context, canvasHeight);
+                drawMapBackground(context);
 
+                drawAgents(context);
+
+                drawInfo(context);
+
+                //drawCrosshair(context);
             }
         };
         animationTimer.start();
-
     }
 
+    private Point2D snapMapBack(Point2D delta) {
+        var bound = 10;
+        var x = delta.getX();
+        var y = delta.getY();
+
+        var mapDefaultStartX = (canvas.getWidth() / 2) - (relativeMapWidth() / 2);
+        var mapDefaultStartY = ((canvas.getHeight() - infoHeight) / 2) - (relativeMapHeight() / 2);
+
+        // check if map isn't on the moon and snap it back if it is
+        if(x > canvas.getWidth() - mapDefaultStartX - bound) {
+            x = canvas.getWidth() - mapDefaultStartX - bound;
+        }
+        else if (x < -1 * relativeMapWidth() - mapDefaultStartX + bound) {
+            x = -1 * relativeMapWidth() - mapDefaultStartX + bound;
+        }
+
+        if(y > canvas.getHeight() - mapDefaultStartY - bound - infoHeight) {
+            y = canvas.getHeight() - mapDefaultStartY - bound - infoHeight;
+        }
+        else if(y < -1 * relativeMapHeight() - mapDefaultStartY + bound) {
+            y = -1 * relativeMapHeight() - mapDefaultStartY + bound;
+        }
+        return new Point2D((int)x, (int)y);
+    }
+
+    public void resetMapPosition() {
+        translateBy = Point2D.ZERO;
+        translateByStartingPoint = Point2D.ZERO;
+    }
+
+    private void drawCrosshair(GraphicsContext context) {
+        var canvasCenterX = canvas.getWidth() / 2;
+        var canvasCenterY = (canvas.getHeight() - infoHeight) / 2;
+        var crosshairHalfSize = crossHairSize / 2;
+        context.setStroke(Color.BLACK);
+        context.strokeLine(canvasCenterX,
+                canvasCenterY - crosshairHalfSize,
+                canvasCenterX,
+                canvasCenterY + crosshairHalfSize);
+        context.strokeLine(canvasCenterX - crosshairHalfSize,
+                canvasCenterY,
+                canvasCenterX + crosshairHalfSize,
+                canvasCenterY);
+    }
+
+    /**
+     * Calculate scale factor for current window size
+     * at 100% zoom the drawn map should uniformly fit inside canvas
+     * @return Scale factor
+     */
     private double calculateScaleFactor(){
         // initial scale factor
         // match heights first and check if it fits
-        var scaleFactor = canvas.getHeight() / mapHeight;
+        var scaleFactor = (canvas.getHeight() - infoHeight) / mapHeight;
 
-        if(mapWidth * scaleFactor > canvas.getWidth()){
+        if(scaleFactor < 0 || mapWidth * scaleFactor > canvas.getWidth()){
             // map doesn't fit lengthwise,
             // match widths
             scaleFactor = canvas.getWidth() / mapWidth;
@@ -133,14 +217,27 @@ public class MainMap extends Region {
         return scaleFactor;
     }
 
+    /**
+     * Helper method used to calculate relative width of the map
+     * @return width of the map relative to scale factor and zoom
+     */
     private double relativeMapWidth(){
         return relativeLength(mapWidth);
     }
 
+    /**
+     * Helper method used to calculate relative height of the map
+     * @return height of the map relative to scale factor and zoom
+     */
     private double relativeMapHeight(){
         return relativeLength(mapHeight);
     }
 
+    /**
+     * Multiplies provided number/length with scale factor and the zoom scale
+     * @param n provided number/length
+     * @return provided length scaled by scale factor and zoom scale
+     */
     private double relativeLength(double n){
         return n * scaleFactor * getZoomScale();
     }
@@ -148,77 +245,133 @@ public class MainMap extends Region {
     private double relativeX(double x){
         return mapStart.getX() + relativeLength(x);
     }
-
     private double relativeY(double y){
         return mapStart.getY() + relativeLength(y);
     }
+    private Point2D relativePosition(double x, double y){
+        return mapStart.add(relativeLength(x), relativeLength(y));
+    }
 
     private double getZoomScale() {
+        if(zoomLevel > 1) return zoomLevel;
+        
         return switch (zoomLevel) {
-            case 0 -> 0.25;
-            case 1 -> 0.33;
-            case 2 -> 0.5;
-            case 3 -> 0.75;
-            case 4 -> 1;
-            case 5 -> 1.5;
-            case 6 -> 2;
-            case 7 -> 3;
-            case 8 -> 4;
-            case 9 -> 5;
-            default -> 1; //this shouldn't happen
+            case 0  -> 1;
+            case 1  -> 1.5;
+            default -> throw new IllegalStateException("Unexpected value: " + zoomLevel);
         };
     }
 
+    /**
+     * Draws informations about current zoom level and by how much the map is moved
+     * @param context canvas's drawing context
+     */
+    private void drawInfo(GraphicsContext context){
 
-    private void drawZoom(GraphicsContext context, double canvasHeight){
+        final DecimalFormat decimalFormat = new DecimalFormat("0.00");
+
+        context.setFill(Color.WHITE);
+        context.setStroke(Color.BLACK);
+        context.setLineWidth(1);
+        context.fillRect(0, canvas.getHeight() - infoHeight + 1, canvas.getWidth(), infoHeight - 1);
+        context.strokeRect(-2, canvas.getHeight() - infoHeight + 1, canvas.getWidth() + 4, infoHeight);
+
         var zoom = getZoomScale() * 100;
         context.setFill(Color.BLACK);
-        context.fillText(zoom + "%", 0, canvasHeight);
+        context.fillText(zoom + "%; " +
+                        "Moved by: [" + translateBy.getX() + ", " + translateBy.getY() + "]; " +
+                        "Map size: " + mapWidth + "x" + mapHeight + "; " +
+                        "Map size on screen: " + decimalFormat.format(relativeMapWidth()) + "x" + decimalFormat.format(relativeMapHeight()) + "; ",
+                0,
+                canvas.getHeight() - 5);
     }
 
-    private void drawMapBackground(GraphicsContext context, double canvasWidth, double canvasHeight) {
-        var canvasCenterX = canvasWidth / 2;
-        var canvasCenterY = canvasHeight / 2;
+    private void calculateAndSetMapStartingPoint(){
+        var canvasCenterX = canvas.getWidth() / 2;
+        var canvasCenterY = canvas.getHeight() / 2;
 
         // scale width and height of map to fit inside canvas
-        mapStart = new Point2D(canvasCenterX - (relativeMapWidth() / 2), canvasCenterY - (relativeMapHeight() / 2)).add(translateBy);
-
-        //draw the map background
-        context.setFill(Color.WHITE);
-        context.fillRect(mapStart.getX(), mapStart.getY(), relativeMapWidth(), relativeMapHeight());
-
-        context.setFill(Color.VIOLET);
-
-        for (int w = 0; w < mapWidth; w++) {
-            for (int h = 0; h < mapHeight; h++) {
-                if(agents[w][h])
-                {
-                    context.fillRect(relativeX(w), relativeY(h), relativeLength(1), relativeLength(1));
-                }
-            }
-        }
+        mapStart = new Point2D(canvasCenterX - (relativeMapWidth() / 2),
+                canvasCenterY - (relativeMapHeight() / 2) - (infoHeight / 2)).add(translateBy);
     }
 
-    private void drawBackground(GraphicsContext context, double canvasWidth, double canvasHeight) {
+    private void drawMapBackground(GraphicsContext context) {
+        context.setFill(Color.WHITE);
+        context.fillRect(mapStart.getX(), mapStart.getY(), relativeMapWidth(), relativeMapHeight());
+    }
+
+    private void drawBackground(GraphicsContext context) {
         // fill the whole screen
         context.setFill(Color.LIGHTGRAY);
         context.setStroke(Color.LIGHTGRAY);
-        context.fillRect(0,0, canvasWidth, canvasHeight);
+        context.fillRect(0,0, canvas.getWidth(), canvas.getHeight());
     }
 
-    public int getMapHeight() {
-        return mapHeight;
+    private void drawAgents(GraphicsContext context){
+        var agents = this.agents.get();
+
+        if (agents.length == 0)
+            return;
+
+        var relativeOneUnit = relativeLength(1);
+        var canvasWidth = canvas.getWidth();
+        var canvasHeight = canvas.getHeight();
+
+        for (int i = 0; i < 4; i++) {
+
+            var state = switch (i){
+                case 0 -> AgentState.Susceptible;
+                case 1 -> AgentState.Infectious;
+                case 2 -> AgentState.Recovered;
+                case 3 -> AgentState.Dead;
+                default -> throw new IllegalStateException("Unexpected value: " + i);
+            };
+
+            // set color of agent based on it's state
+            context.setFill(switch (state) {
+                case Susceptible -> Color.DEEPSKYBLUE;
+                case Infectious -> Color.RED;
+                case Recovered -> Color.YELLOW;
+                case Dead -> Color.DARKGRAY;
+            });
+
+
+            for (int x = 0; x < agents.length; x++) {
+                for (int y = 0; y < agents[x].length; y++) {
+                    var agent = agents[x][y];
+                    if(agent == null || agent.getState() != state)
+                        continue;
+
+                    var relativeX = relativeX(x);
+                    var relativeY = relativeY(y);
+
+                    // skip drawing agent if it's outside bounds of canvas
+                    if(relativeX < -1 * relativeOneUnit ||
+                            relativeY < -1 * relativeOneUnit ||
+                            relativeX > canvasWidth + relativeOneUnit ||
+                            relativeY > canvasHeight + relativeOneUnit)
+                        continue;
+
+                    // draw agent
+                    context.fillRect(relativeX, relativeY, relativeOneUnit, relativeOneUnit);
+                }
+            }
+        }
+
+
+
     }
 
-    public void setMapHeight(int mapHeight) {
+    public Point2D getMapDimentions() {
+        return new Point2D(mapWidth, mapHeight);
+    }
+
+    public void setMap(int mapWidth, int mapHeight){
+        this.mapWidth = mapWidth;
         this.mapHeight = mapHeight;
     }
 
-    public int getMapWidth() {
-        return mapWidth;
-    }
-
-    public void setMapWidth(int mapWidth) {
-        this.mapWidth = mapWidth;
+    public void lazySetAgents(Agent[][] agents) {
+        this.agents.set(agents);
     }
 }

@@ -9,6 +9,8 @@
 
 <?import com.sun.javafx.scene.control.CustomColorDialog.ColorRectPane?>
 <?import xyz.epat.modelsirs.uiComponents.MainMap?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.geometry.Insets?>
 <GridPane alignment="CENTER" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity"
           prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
           fx:controller="xyz.epat.modelsirs.MainViewController">
@@ -22,7 +24,14 @@
     </rowConstraints>
     <children>
         <MainMap fx:id="mainMap" prefHeight="300" prefWidth="400" GridPane.rowIndex="0"/>
-        <Label fx:id="welcomeText" text="tr" GridPane.rowIndex="1"/>
-        <Button onAction="#onHelloButtonClick" text="Hello!" GridPane.rowIndex="2"/>
+        <Label fx:id="simulationState" GridPane.rowIndex="1" />
+        <HBox GridPane.rowIndex="2" spacing="5" alignment="CENTER_LEFT" >
+            <padding>
+                <Insets left="5"/>
+            </padding>
+            <Button onAction="#onResetButtonClick" text="Zresetuj pozycje mapy" />
+            <Button onAction="#onResetSimulationButtonClick" text="Zresetuj symulację"/>
+
+        </HBox>
     </children>
 </GridPane>
