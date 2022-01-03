@@ -29,7 +29,7 @@
             <padding>
                 <Insets left="5"/>
             </padding>
-            <Button onAction="#onResetButtonClick" text="Zresetuj pozycje mapy" />
+            <Button onAction="#onResetMapPositionButtonClick" text="Zresetuj pozycje mapy" />
             <Button onAction="#onResetSimulationButtonClick" text="Zresetuj symulację"/>
 
         </HBox>

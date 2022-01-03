@@ -14,14 +14,15 @@ public class SirsModelApplication extends Application {
 
         //loading main window of the program from FXML
 
-        // that fxml
+        // fxml defines main UI and have a controller (MainViewController.java) attached to it
+        // the whole simulation happens there
         FXMLLoader fxmlLoader = new FXMLLoader(SirsModelApplication.class.getResource("main-view.fxml"));
         Scene scene = new Scene(fxmlLoader.load(), 500, 450);
         stage.setTitle("Model SIRS v1.0 - Damian Kuśmierz");
 
-        // trying to close the program
+        // stop simulation if user is trying to close the window
         stage.setOnCloseRequest(we -> {
-            ((MainViewController)fxmlLoader.getController()).stopThreads();
+            ((MainViewController)fxmlLoader.getController()).stop();
             Platform.exit();
             try {
                 this.stop();

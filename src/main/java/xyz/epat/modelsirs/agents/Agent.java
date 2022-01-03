@@ -1,18 +1,34 @@
 package xyz.epat.modelsirs.agents;
 
-import javafx.geometry.Point2D;
 
 import java.util.List;
 import java.util.Random;
 import java.util.Vector;
 
+/**
+ * Agent used in simulation
+ */
 public class Agent {
+
+    /**
+     * Agent used in simulation
+     * @param name name of an Agent
+     * @param age initial age of Agent
+     * @param state initial state of Agent
+     */
     public Agent(String name, float age, AgentState state) {
         this.name = name;
         this.age = age;
         this.state = state;
     }
 
+    /**
+     * Agent used in simulation
+     * @param name name of an Agent
+     * @param age initial age of Agent
+     * @param state initial state of Agent
+     * @param modifiers initial modifiers
+     */
     public Agent(String name, float age, AgentState state, AgentModifier[] modifiers) {
         this(name, age, state);
         for (var modifier : modifiers) {
@@ -26,12 +42,13 @@ public class Agent {
     private AgentState state = AgentState.Susceptible;
     private final Vector<AgentModifier> modifiers = new Vector<AgentModifier>();
     private final Vector<AgentModifier> modifiersBackup = new Vector<AgentModifier>();
-    //private Point2D position = new Point2D(12, 32);
 
+    /**
+     * Create a copy of an agent
+     * @return new Agent with the same contents as current agent
+     */
     public Agent copy() {
-        var agent = new Agent(this.name, this.age, this.state, this.modifiers.toArray(new AgentModifier[this.modifiers.size()]));
-        //agent.setPosition(this.position);
-        return agent;
+        return new Agent(this.name, this.age, this.state, this.modifiers.toArray(new AgentModifier[0]));
     }
 
     public String getName() { return name; }
@@ -75,19 +92,6 @@ public class Agent {
 
         return true;
     }
-
-//    public Point2D getPosition() {
-//        return position;
-//    }
-//
-//    public void setPosition(Point2D position) {
-//        this.position = position;
-//    }
-//
-//    public void setPosition(double x, double y){
-//        this.position = new Point2D(x, y);
-//    }
-
 
     /**
      * Create specified number of agents

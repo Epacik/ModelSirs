@@ -9,7 +9,6 @@ import xyz.epat.modelsirs.agents.Agent;
 import xyz.epat.modelsirs.agents.AgentState;
 import xyz.epat.modelsirs.uiComponents.MainMap;
 
-import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -21,29 +20,43 @@ public class MainViewController {
     @FXML
     private MainMap mainMap;
 
-    Agent[][][] agents = new Agent[2][10][10];
+    Agent[][] agents = new Agent[10][10];
 
     private static final Logger logger = LoggerFactory.getLogger(MainMap.class);
 
-    private final int infectionRadius = 2;
-    private final double chanceToGetInfected = 20;
-    private final double chanceToDie = 2;
+    private final int infectionRange = 2;
+    private final double chanceToGetInfected = 4;
+    private final double chanceToDie = 1;
     private final double chanceToRecover = 5;
     private final double chanceToGetSusceptible = 5;
 
+    // what percentage of the map should agents cover
     private final double coverageByAgents = 0.8;
 
+    // just to show some stats
     private final AtomicInteger susceptibleTotal = new AtomicInteger(0);
     private final AtomicInteger infectiousTotal = new AtomicInteger(0);
     private final AtomicInteger deadTotal = new AtomicInteger(0);
     private final AtomicInteger recoveredTotal = new AtomicInteger(0);
+    private final AtomicInteger generationStep = new AtomicInteger(0);
+
+    // used to block simulation or end it altogether
+    private final AtomicBoolean resetingSimulation = new AtomicBoolean(false);
+    private final AtomicBoolean simulationStep = new AtomicBoolean(false);
+    private final AtomicBoolean cancelExecution = new AtomicBoolean(false);
 
     private final Random random = new Random();
-
+    /**
+     * Get a double value between 0 and 100
+     * @return random value between 0 and 100
+     */
     double nextPercentage() {
-        return random.nextDouble(100);
+        return random.nextDouble(0, 100);
     }
 
+    /**
+     * timer used to update informations in the UI
+     */
     private final AnimationTimer animationTimer = new AnimationTimer() {
 
         @Override
@@ -76,92 +89,128 @@ public class MainViewController {
         }
     };
 
+    /**
+     * this gets called after UI is initialized
+     */
     @FXML
     public void initialize() {
+        animationTimer.start();
 
         resetSimulation();
-        var size = mainMap.getMapDimentions();
+    }
 
-        var thread = new Thread(() -> {
-            if(cancelExecution.get())
+    private Thread simThread = null;
+    /**
+     * Spawns a new thread to simulate on and runs it
+     */
+    private void initializeSimThread() {
+
+        simThread = new Thread(() -> {
+
+            if (cancelExecution.get()) // stop! someone is closing a window
                 return;
 
-            int currentAgents = 0;
-            int previousAgents = 1;
+            // rangeMask is used to determine which agents around current one can infect it
+            //
+            // the maximum distance to the agent able to infect the current one may change
+            // so not only agents placed right next to the current one may infect it
+            //
+            var infectionDiameter = infectionRange * 2 + 1;
+            boolean[][] rangeMask = new boolean[infectionDiameter][infectionDiameter];
 
-            // no need to recalculate it each time
-            var infectionDiameter = infectionRadius * 2 + 1;
-            boolean [][] rangeMask = new boolean[infectionDiameter][infectionDiameter];
-            {
-                for (int x = 0; x < infectionDiameter; x++) {
-                    for (int y = 0; y < infectionDiameter; y++) {
-                        if(x == infectionRadius && y == infectionRadius)
-                        {
-                            rangeMask[x][y] = false;
-                            continue;
-                        }
+            // fill the mask
+            for (int x = 0; x < infectionDiameter; x++) {
+                for (int y = 0; y < infectionDiameter; y++) {
 
-                        var xSquared = (x - infectionRadius) * (x - infectionRadius);
-                        var ySquared = (y - infectionRadius) * (y - infectionRadius);
-                        var distance = Math.sqrt(xSquared + ySquared);
-
-                        rangeMask[x][y] = distance <= infectionRadius;
+                    // that's the center of rangeMask, no agent can infect themselves
+                    if (x == infectionRange && y == infectionRange) {
+                        rangeMask[x][y] = false;
+                        continue;
                     }
-                }
 
+                    // agents that are further away than the distance defined in infectionRadius
+                    // can infect the agent in the center of a mask
+                    var xSquared = (x - infectionRange) * (x - infectionRange);
+                    var ySquared = (y - infectionRange) * (y - infectionRange);
+                    var distance = Math.sqrt(xSquared + ySquared);
+
+                    rangeMask[x][y] = distance <= infectionRange;
+                }
             }
 
-            while(true){
+            while (true) {
 
-                if(cancelExecution.get())
+                // stop! someone's either closing a window or resetting the simulation
+                if (cancelExecution.get() || resetingSimulation.get())
                     return;
 
-                if(resetingSimulation.get() || simulationStep.get())
+                // is a simulation step already running?
+                // while operating on a single thread this shouldn't ever happen, but it's here just in case
+                if (simulationStep.get())
                     continue;
 
                 simulationStep.set(true);
 
-                var now = LocalDateTime.now().getNano();
+                // may become useful in case of slowing the simulation down
+                //var now = LocalDateTime.now().getNano();
 
-                int susceptibleTotal = 0;
-                int infectiousTotal = 0;
-                int deadTotal = 0;
-                int recoveredTotal = 0;
+                var previous = agents;
+                var current = new Agent[agents.length][agents[0].length];
 
-                var previous = agents[previousAgents];
-                var current = agents[currentAgents];
+                for (int x = 0; x < agents.length; x++) {
+                    for (int y = 0; y < agents[0].length; y++) {
 
-                for (int x = 0; x < agents[0].length; x++) {
-                    for (int y = 0; y < agents[0][0].length; y++) {
+                        // stop! someone's either closing a window or resetting the simulation
+                        if (cancelExecution.get() || resetingSimulation.get()) {
+                            simulationStep.set(false);
+                            return;
+                        }
 
-                        if(previous[x][y] == null || current[x][y] == null)
+                        // there's no agent in this spot, we can move on
+                        if (previous[x][y] == null)
                             continue;
 
+                        // current state is empty at the beginning of a step, so it would be nice to populate it
+                        current[x][y] = previous[x][y].copy();
                         var state = previous[x][y].getState();
-                        switch (state){
-
+                        switch (state) {
                             case Susceptible -> {
+
+                                //using a rangeMask defined earlier check if current agent is getting infected
+                                maskloops:
                                 for (int innerX = 0; innerX < infectionDiameter; innerX++) {
                                     for (int innerY = 0; innerY < infectionDiameter; innerY++) {
-                                        if(!rangeMask[innerX][innerY])
+
+                                        // let's skip agents that are too far away and ourselves
+                                        if (!rangeMask[innerX][innerY])
                                             continue;
 
-                                        var testX = x - infectionRadius + innerX;
-                                        var testY = y - infectionRadius + innerY;
+                                        var testX = x - infectionRange + innerX;
+                                        var testY = y - infectionRange + innerY;
 
-                                        if(testX < 0 || testY < 0 || testX >= agents[0].length || testY >= agents[0][0].length)
+                                        // skip if we're outside bounds of the array
+                                        if (testX < 0 || testY < 0 || testX >= agents.length || testY >= agents[0].length)
                                             continue;
 
+                                        // skip if agent doesn't exist or isn't infectious
                                         var testedAgent = previous[testX][testY];
-                                        if(testedAgent == null || testedAgent.getState() != AgentState.Infectious)
+                                        if (testedAgent == null || testedAgent.getState() != AgentState.Infectious)
                                             continue;
 
-                                        if(nextPercentage() < chanceToGetInfected)
+                                        // let's "roll a dice" and find out if the agent gets infected and if it does,
+                                        // then we can just skip the rest of the mask
+                                        if (nextPercentage() < chanceToGetInfected)
+                                        {
                                             current[x][y].setState(AgentState.Infectious);
+                                            break maskloops;
+                                        }
                                     }
                                 }
+
                             }
+
                             case Infectious -> {
+                                // infectious agents can either recover, die or stay infectious
                                 if (nextPercentage() < chanceToDie) {
                                     current[x][y].setState(AgentState.Dead);
                                 } else if (nextPercentage() < chanceToRecover) {
@@ -169,21 +218,29 @@ public class MainViewController {
                                 }
                             }
                             case Recovered -> {
+                                // recovered agents can get susceptible again
                                 if (nextPercentage() < chanceToGetSusceptible) {
                                     current[x][y].setState(AgentState.Susceptible);
                                 }
                             }
+                            // Dead agents aren't going to do anything, so that case is missing
                         }
                     }
                 }
+
+                // useful to show some additional informations about current state of simulation
+                int susceptibleTotal = 0;
+                int infectiousTotal = 0;
+                int deadTotal = 0;
+                int recoveredTotal = 0;
+
                 // count agents per state
                 for (Agent[] value : current) {
                     for (Agent agent : value) {
                         if (agent == null) {
                             continue;
                         }
-                        var state = agent.getState();
-                        switch (state) {
+                        switch (agent.getState()) {
                             case Susceptible -> susceptibleTotal++;
                             case Infectious -> infectiousTotal++;
                             case Recovered -> recoveredTotal++;
@@ -193,111 +250,116 @@ public class MainViewController {
 
                 }
 
+                // set fields so the UI can display those numbers
                 this.susceptibleTotal.set(susceptibleTotal);
                 this.infectiousTotal.set(infectiousTotal);
                 this.recoveredTotal.set(recoveredTotal);
                 this.deadTotal.set(deadTotal);
 
-                mainMap.lazySetAgents(previous);
-
-                var xSize = agents[currentAgents].length;
-                var ySize = agents[currentAgents][0].length;
-                agents[previousAgents] = new Agent[xSize][ySize];
-                for (int x = 0; x < xSize; x++) {
-                    for (int y = 0; y < ySize; y++) {
-                        if(agents[currentAgents][x][y] != null)
-                            agents[previousAgents][x][y] = agents[currentAgents][x][y].copy();
-                    }
-                }
+                // send the current state to be displayed and save it for the next step
+                mainMap.lazySetAgents(current);
+                agents = current;
 
                 simulationStep.set(false);
 
-                currentAgents = (currentAgents + 1) % 2;
-                previousAgents = (previousAgents + 1) % 2;
-
-                // there's no point of simulation when no-one is infected
-//                if(infectiousTotal == 0)
-//                {
-//                    return;
-//                }
+                // there's no point of continuing when no-one is infected and no-one is recovered
+                // the state of the simulation won't change at this point
+                if(infectiousTotal == 0 && recoveredTotal == 0)
+                {
+                    return;
+                }
             }
         });
-
-        thread.start();
-
-        animationTimer.start();
-
+        simThread.start();
     }
 
+    /**
+     * called by "Zresetuj pozycję mapy"
+     */
     @FXML
-    protected void onResetButtonClick() {
+    protected void onResetMapPositionButtonClick() {
         mainMap.resetMapPosition();
         //mainMap.drawRect();
     }
 
+    /**
+     * called by "Zresetuj symulację"
+     */
     @FXML
     public void onResetSimulationButtonClick() {
         resetSimulation();
     }
 
-    private final AtomicBoolean resetingSimulation = new AtomicBoolean(false);
-    private final AtomicBoolean simulationStep = new AtomicBoolean(false);
-    private final AtomicInteger generationStep = new AtomicInteger(0);
-    private final AtomicBoolean cancelExecution = new AtomicBoolean(false);
-
-
+    /**
+     * stops the simulation, resets state of the simulation and starts a new one
+     */
     private void resetSimulation() {
 
         var thread = new Thread(() -> {
             if(cancelExecution.get())
                 return;
 
+            resetingSimulation.set(true);
             while(simulationStep.get()){
-
+                // wait until simulation exits
             }
 
-            resetingSimulation.set(true);
-            var rnd = new Random();
-
+            // determine the size of simulation and prepare new agent array
             var size = mainMap.getMapDimentions();
             var numberOfAgents = (int)(size.getX() * size.getY() * coverageByAgents);
-            agents[0] = new Agent[(int)size.getX()][(int)size.getY()];
-            agents[1] = new Agent[(int)size.getX()][(int)size.getY()];
+
+            var agents = new Agent[(int)size.getX()][(int)size.getY()];
+
+            //agents[1] = new Agent[(int)size.getX()][(int)size.getY()];
             for (int index = 0; index < numberOfAgents; index++){
+
+                // in case of larger simulations this should indicate to the user how many agents is yet to be generated
+                // in smaller ones it probably would be too quick to notice
                 generationStep.lazySet(index);
 
+                // create new agent and place it in some empty spot
+                // two agents cannot share the same spot
                 var agent = new Agent("Agent " + index + 1, 0, AgentState.Susceptible);
 
-
                 int x = 0;
                 int y = 0;
                 do {
-                    x = rnd.nextInt((int)size.getX());
-                    y = rnd.nextInt((int)size.getY());
-                } while (agents[0][x][y] != null);
+                    x = random.nextInt((int)size.getX());
+                    y = random.nextInt((int)size.getY());
+                } while (agents[x][y] != null);
 
-                agents[0][x][y] = agent;
-                agents[1][x][y] = agent.copy();
+                agents[x][y] = agent;
             }
 
-            for (int i = 0; i < (agents[0].length * 0.003 > 1 ? agents[0].length * 0.003 : 1); i++) {
+            // 0.3% (effectively rounded down to the nearest integer) of agents gets infected,
+            // unless that number is smaller than one in such case only one of them gets infected
+            for (int i = 0; i < (agents.length * 0.003 > 1 ? agents.length * 0.003 : 1); i++) {
                 int x = 0;
                 int y = 0;
                 do {
-                    x = rnd.nextInt(agents[0].length);
-                    y = rnd.nextInt(agents[0][x].length);
-                } while (agents[0][x][y] == null);
-                agents[0][x][y].setState(AgentState.Infectious);
-                agents[1][x][y].setState(AgentState.Infectious);
+                    x = random.nextInt(agents.length);
+                    y = random.nextInt(agents[x].length);
+                } while (agents[x][y] == null);
+                agents[x][y].setState(AgentState.Infectious);
+                //agents[1][x][y].setState(AgentState.Infectious);
             }
 
-            mainMap.lazySetAgents(agents[0]);
+            // update agents to display
+            mainMap.lazySetAgents(agents);
+            this.agents = agents;
+
             resetingSimulation.set(false);
+
+            // and start the simulation
+            initializeSimThread();
         });
         thread.start();
     }
 
-    public void stopThreads() {
+    /**
+     * Stops the simulation and UI updates
+     */
+    public void stop() {
         cancelExecution.set(true);
         mainMap.stop();
     }
