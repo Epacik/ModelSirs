@@ -26,8 +26,8 @@ public class MainMap extends Region {
     private static final Logger logger = LoggerFactory.getLogger(MainMap.class);
     private final Canvas canvas;
 
-    private int mapHeight = 450;
-    private int mapWidth = 900;
+    private int mapHeight = 60;
+    private int mapWidth = 90;
 
     /**
      *

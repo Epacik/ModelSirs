@@ -1,14 +1,20 @@
 package xyz.epat.modelsirs;
 
 import javafx.animation.AnimationTimer;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.geometry.Point2D;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import xyz.epat.modelsirs.agents.Agent;
 import xyz.epat.modelsirs.agents.AgentState;
 import xyz.epat.modelsirs.uiComponents.MainMap;
 
+import java.text.DecimalFormat;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -16,6 +22,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class MainViewController {
     @FXML
     public Label simulationState;
+    public TextField mapHeightInput;
+    public TextField mapWidthInput;
+    public TextField mapCoverageInput;
+    public TextField infectionRangeInput;
+    public TextField chanceToGetInfectedInput;
+    public TextField chanceToRecoverInput;
+    public TextField chanceToDieInput;
+    public TextField chanceToGetSusceptibleInput;
 
     @FXML
     private MainMap mainMap;
@@ -24,14 +38,14 @@ public class MainViewController {
 
     private static final Logger logger = LoggerFactory.getLogger(MainMap.class);
 
-    private final int infectionRange = 2;
-    private final double chanceToGetInfected = 4;
-    private final double chanceToDie = 1;
-    private final double chanceToRecover = 5;
-    private final double chanceToGetSusceptible = 5;
+    private int infectionRange = 2;
+    private double chanceToGetInfected = 4;
+    private double chanceToDie = 1;
+    private double chanceToRecover = 5;
+    private double chanceToGetSusceptible = 5;
 
     // what percentage of the map should agents cover
-    private final double coverageByAgents = 0.8;
+    private double coverageByAgents = 0.8;
 
     // just to show some stats
     private final AtomicInteger susceptibleTotal = new AtomicInteger(0);
@@ -54,6 +68,8 @@ public class MainViewController {
         return random.nextDouble(0, 100);
     }
 
+
+    private static final DecimalFormat df = new DecimalFormat("0.00");
     /**
      * timer used to update informations in the UI
      */
@@ -62,20 +78,19 @@ public class MainViewController {
         @Override
         public void handle(long now) {
 
-            if(cancelExecution.get())
-            {
+            if (cancelExecution.get()) {
                 animationTimer.stop();
                 return;
             }
 
-            if(cancelExecution.get() && animationTimer != null) {
+            if (cancelExecution.get() && animationTimer != null) {
                 animationTimer.stop();
                 return;
             }
 
             var size = mainMap.getMapDimentions();
-            var totalNumberOfAgents = (int)(size.getX() * size.getY() * coverageByAgents);
-            if(resetingSimulation.get()){
+            var totalNumberOfAgents = (int) (size.getX() * size.getY() * coverageByAgents);
+            if (resetingSimulation.get()) {
                 simulationState.setText("Generowanie nowych agentów: " + generationStep.get() + " z " + totalNumberOfAgents);
                 return;
             }
@@ -85,7 +100,10 @@ public class MainViewController {
             var recovered = recoveredTotal.get();
             var dead = deadTotal.get();
 
-            simulationState.setText(" Wszyscy: " + totalNumberOfAgents + "; Podatni: " + susceptible + "; Zarażeni: " + infectious + ";\n Ozdrowieni: " + recovered + "; Martwi: " + dead);
+            simulationState.setText(" Wszyscy: " + totalNumberOfAgents + "; Podatni: " + susceptible + "; Zarażeni: " + infectious +
+                    ";\n Ozdrowieni: " + recovered + "; Martwi: " + dead +
+                    ";\n Pokrycie agentami: " + df.format(coverageByAgents * 100) + "%; Zasięg zarażania: " + infectionRange +
+                    ";\n Szansa na: [ zarażenie: " + df.format(chanceToGetInfected) + "%; wyzdrowienie: " + df.format(chanceToRecover) + "%; śmierć: " + df.format(chanceToDie) + "%; ponowną podatność: " + df.format(chanceToGetSusceptible) + "% ]");
         }
     };
 
@@ -242,9 +260,9 @@ public class MainViewController {
                         }
                         switch (agent.getState()) {
                             case Susceptible -> susceptibleTotal++;
-                            case Infectious -> infectiousTotal++;
-                            case Recovered -> recoveredTotal++;
-                            case Dead -> deadTotal++;
+                            case Infectious  -> infectiousTotal++;
+                            case Recovered   -> recoveredTotal++;
+                            case Dead        -> deadTotal++;
                         }
                     }
 
@@ -290,6 +308,17 @@ public class MainViewController {
         resetSimulation();
     }
 
+    private void showError(String message){
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Błąd");
+            alert.setHeaderText("Błąd");
+            alert.setContentText(message);
+            alert.showAndWait();
+        });
+
+    }
+
     /**
      * stops the simulation, resets state of the simulation and starts a new one
      */
@@ -304,8 +333,115 @@ public class MainViewController {
                 // wait until simulation exits
             }
 
+            String mapWidthS = mapWidthInput.getText();
+            String mapHeightS = mapHeightInput.getText();
+            String coverageS = mapCoverageInput.getText();
+            String rangeS = infectionRangeInput.getText();
+            String chanceToGetInfectedS = chanceToGetInfectedInput.getText();
+            String chanceToDieS = chanceToDieInput.getText();
+            String chanceToRecoverS = chanceToRecoverInput.getText();
+            String chanceToGetSusceptibleS = chanceToGetSusceptibleInput.getText();
+
+            int mapWidth = 0;
+            int mapHeight = 0;
+            double coverage = 0;
+            int range = 0;
+            double chanceInfected = 0;
+            double chanceDie = 0;
+            double chanceRecover = 0;
+            double chanceSusceptible = 0;
+
+            try {
+                mapWidth = Integer.parseUnsignedInt(mapWidthS);
+            }
+            catch (NumberFormatException ex){
+                showError("Wystąpił błąd konwertowania szerokości mapy do liczby\n" +
+                        "Upewnij się, że wprowadzona wartość jest liczbą i spróbuj ponownie\n\n" + ex.getLocalizedMessage());
+                return;
+            }
+
+            try {
+                mapHeight = Integer.parseUnsignedInt(mapHeightS);
+            }
+            catch (NumberFormatException ex){
+                showError("Wystąpił błąd konwertowania wysokości mapy do liczby\n" +
+                        "Upewnij się, że wprowadzona wartość jest liczbą i spróbuj ponownie\n\n" + ex.getLocalizedMessage());
+                return;
+            }
+
+
+            try {
+                coverage = Double.parseDouble(coverageS) / 100;
+            }
+            catch (NumberFormatException ex){
+                showError("Wystąpił błąd konwertowania pokrycia mapy agentami do liczby\n" +
+                        "Upewnij się, że wprowadzona wartość jest liczbą i spróbuj ponownie\n\n" + ex.getLocalizedMessage());
+                return;
+            }
+
+            try {
+                range = Integer.parseUnsignedInt(rangeS);
+            }
+            catch (NumberFormatException ex){
+                showError("Wystąpił błąd konwertowania zasięgu zarażania do liczby\n" +
+                        "Upewnij się, że wprowadzona wartość jest liczbą i spróbuj ponownie\n\n" + ex.getLocalizedMessage());
+                return;
+            }
+
+            try {
+                chanceInfected = Double.parseDouble(chanceToGetInfectedS);
+            }
+            catch (NumberFormatException ex){
+                showError("Wystąpił błąd konwertowania szansy na zarażenie do liczby\n" +
+                        "Upewnij się, że wprowadzona wartość jest liczbą i spróbuj ponownie\n\n" + ex.getLocalizedMessage());
+                return;
+            }
+
+            try {
+                chanceDie = Double.parseDouble(chanceToDieS);
+            }
+            catch (NumberFormatException ex){
+                showError("Wystąpił błąd konwertowania szansy na śmierć do liczby\n" +
+                        "Upewnij się, że wprowadzona wartość jest liczbą i spróbuj ponownie\n\n" + ex.getLocalizedMessage());
+                return;
+            }
+
+            try {
+                chanceRecover = Double.parseDouble(chanceToRecoverS);
+            }
+            catch (NumberFormatException ex){
+                showError("Wystąpił błąd konwertowania szansy na wyzdrowienie do liczby\n" +
+                        "Upewnij się, że wprowadzona wartość jest liczbą i spróbuj ponownie\n\n" + ex.getLocalizedMessage());
+                return;
+            }
+
+            try {
+                chanceSusceptible = Double.parseDouble(chanceToGetSusceptibleS);
+            }
+            catch (NumberFormatException ex){
+                showError("Wystąpił błąd konwertowania szansy na ponowną podatność do liczby\n" +
+                        "Upewnij się, że wprowadzona wartość jest liczbą i spróbuj ponownie\n\n" + ex.getLocalizedMessage());
+                return;
+            }
+
+            mainMap.setMap(mapWidth, mapHeight);
+
+
+
+            coverageByAgents       = limit(coverage, 1.0, 0.0);
+            chanceToGetInfected    = limit(chanceInfected, 100.0, 0.0);
+            chanceToGetSusceptible = limit(chanceSusceptible, 100.0, 0.0);
+            chanceToRecover        = limit(chanceRecover, 100.0, 0.0);
+            chanceToDie            = limit(chanceDie, 100.0, 0.0);
+
+            infectionRange = range;
+
+
+            var size = new Point2D(mapWidth, mapHeight);
+
+
             // determine the size of simulation and prepare new agent array
-            var size = mainMap.getMapDimentions();
+
             var numberOfAgents = (int)(size.getX() * size.getY() * coverageByAgents);
 
             var agents = new Agent[(int)size.getX()][(int)size.getY()];
@@ -355,6 +491,19 @@ public class MainViewController {
         });
         thread.start();
     }
+
+
+
+    private <T extends Number & Comparable<T>> T limit(T number, T max, T min) {
+        if(number.compareTo(max) > 0){
+            number = max;
+        }
+        else if(number.compareTo(min) < 0){
+            number = min;
+        }
+        return number;
+    }
+
 
     /**
      * Stops the simulation and UI updates

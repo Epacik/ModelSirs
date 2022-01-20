@@ -11,16 +11,19 @@
 <?import xyz.epat.modelsirs.uiComponents.MainMap?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.TextField?>
 <GridPane alignment="CENTER" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity"
           prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
           fx:controller="xyz.epat.modelsirs.MainViewController">
     <columnConstraints>
-        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0"/>
+        <ColumnConstraints hgrow="NEVER"  minWidth="150.0" prefWidth="150.0" maxWidth="150.0"/>
     </columnConstraints>
     <rowConstraints>
         <RowConstraints vgrow="ALWAYS"/>
-        <RowConstraints maxHeight="50.0" minHeight="50.0" prefHeight="50.0" vgrow="NEVER"/>
-        <RowConstraints maxHeight="50.0" minHeight="50.0" prefHeight="50.0" vgrow="NEVER"/>
+        <RowConstraints maxHeight="80.0" minHeight="80.0" prefHeight="80.0" vgrow="NEVER"/>
+        <RowConstraints maxHeight="30.0" minHeight="30.0" prefHeight="30.0" vgrow="NEVER"/>
     </rowConstraints>
     <children>
         <MainMap fx:id="mainMap" prefHeight="300" prefWidth="400" GridPane.rowIndex="0"/>
@@ -33,5 +36,36 @@
             <Button onAction="#onResetSimulationButtonClick" text="Zresetuj symulację"/>
 
         </HBox>
+
+        <VBox GridPane.columnIndex="1" GridPane.rowSpan="3">
+            <padding>
+                <Insets left="5"/>
+            </padding>
+            <Label>Wielkość mapy</Label>
+            <Label>Wysokość</Label>
+            <TextField fx:id="mapHeightInput" text="200"/>
+            <Label>Szerokość</Label>
+            <TextField fx:id="mapWidthInput" text="400"/>
+            <Label/>
+
+            <Label>Pokrycie mapy</Label>
+            <Label>agentami (%)</Label>
+            <TextField fx:id="mapCoverageInput" text="80"/>
+            <Label/>
+
+            <Label>Zasięg zarażenia</Label>
+            <TextField fx:id="infectionRangeInput" text="2"/>
+            <Label/>
+
+            <Label>Szansa na:</Label>
+            <Label>Zarażenie się (%)</Label>
+            <TextField fx:id="chanceToGetInfectedInput" text="0.4"/>
+            <Label>Wyzdrowienie (%)</Label>
+            <TextField fx:id="chanceToRecoverInput" text="0.5"/>
+            <Label>Śmierć (%)</Label>
+            <TextField fx:id="chanceToDieInput" text="0.1"/>
+            <Label>Ponowną podatność (%)</Label>
+            <TextField fx:id="chanceToGetSusceptibleInput" text="0.5"/>
+        </VBox>
     </children>
 </GridPane>

@@ -18,6 +18,7 @@ public class SirsModelApplication extends Application {
         // the whole simulation happens there
         FXMLLoader fxmlLoader = new FXMLLoader(SirsModelApplication.class.getResource("main-view.fxml"));
         Scene scene = new Scene(fxmlLoader.load(), 500, 450);
+
         stage.setTitle("Model SIRS v1.0 - Damian Kuśmierz");
 
         // stop simulation if user is trying to close the window
@@ -33,6 +34,8 @@ public class SirsModelApplication extends Application {
         });
         stage.setScene(scene);
         stage.setMaximized(true);
+        stage.setMinHeight(450);
+        stage.setMinWidth(700);
         stage.show();
     }
 
