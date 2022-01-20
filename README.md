@@ -1,6 +1,6 @@
 ## Model SIRS
 
-[English below](English)
+[English below](#English)
 
 ##### Polski
 
