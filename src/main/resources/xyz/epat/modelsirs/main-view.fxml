@@ -51,6 +51,9 @@
             <Label>Pokrycie mapy</Label>
             <Label>agentami (%)</Label>
             <TextField fx:id="mapCoverageInput" text="80"/>
+            <Label>Początkowi zarażeni</Label>
+            <Label>(% wszystkich agentów)</Label>
+            <TextField fx:id="infectiousAgentsInput" text="0.003"/>
             <Label/>
 
             <Label>Zasięg zarażenia</Label>

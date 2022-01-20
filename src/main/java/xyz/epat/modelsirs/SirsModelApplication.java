@@ -34,7 +34,7 @@ public class SirsModelApplication extends Application {
         });
         stage.setScene(scene);
         stage.setMaximized(true);
-        stage.setMinHeight(450);
+        stage.setMinHeight(550);
         stage.setMinWidth(700);
         stage.show();
     }

@@ -30,6 +30,7 @@ public class MainViewController {
     public TextField chanceToRecoverInput;
     public TextField chanceToDieInput;
     public TextField chanceToGetSusceptibleInput;
+    public TextField infectiousAgentsInput;
 
     @FXML
     private MainMap mainMap;
@@ -341,6 +342,7 @@ public class MainViewController {
             String chanceToDieS = chanceToDieInput.getText();
             String chanceToRecoverS = chanceToRecoverInput.getText();
             String chanceToGetSusceptibleS = chanceToGetSusceptibleInput.getText();
+            String infectionsAgentsNumberS = infectiousAgentsInput.getText();
 
             int mapWidth = 0;
             int mapHeight = 0;
@@ -350,6 +352,8 @@ public class MainViewController {
             double chanceDie = 0;
             double chanceRecover = 0;
             double chanceSusceptible = 0;
+
+            double infectionsAgentsNumber = 0.003;
 
             try {
                 mapWidth = Integer.parseUnsignedInt(mapWidthS);
@@ -424,6 +428,17 @@ public class MainViewController {
                 return;
             }
 
+            try {
+                infectionsAgentsNumber = Double.parseDouble(infectionsAgentsNumberS) / 100;
+            }
+            catch (NumberFormatException ex){
+                showError("Wystąpił błąd konwertowania początkowej ilości zarażonych do liczby\n" +
+                        "Upewnij się, że wprowadzona wartość jest liczbą i spróbuj ponownie\n\n" + ex.getLocalizedMessage());
+                return;
+            }
+
+            infectionsAgentsNumber = limit(infectionsAgentsNumber, 100.0, 0.0)
+
             mainMap.setMap(mapWidth, mapHeight);
 
 
@@ -469,7 +484,7 @@ public class MainViewController {
 
             // 0.3% (effectively rounded down to the nearest integer) of agents gets infected,
             // unless that number is smaller than one in such case only one of them gets infected
-            for (int i = 0; i < (agents.length * 0.003 > 1 ? agents.length * 0.003 : 1); i++) {
+            for (int i = 0; i < (agents.length * agents[0].length * infectionsAgentsNumber > 1 ? agents.length * agents[0].length * infectionsAgentsNumber : 1); i++) {
                 int x = 0;
                 int y = 0;
                 do {
