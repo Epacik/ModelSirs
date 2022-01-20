@@ -6,6 +6,7 @@
 
 Projekt zaliczeniowy z zajęć laboratoryjnych z Fizyki komputerowej.
 Program ten służy do symulacji rozprzestrzeniania się pewnej hipotetycznej choroby.
+
 Znajdujący się tutaj kod najpewniej pozostawia wiele do życzenia, szczególnie wśród zaprawionych w boju programistów Javy, 
 serdecznie za to przepraszam, jest to mój pierwszy większy projekt w Javie i musiałem się trochę spieszyć, żeby ukończyć ten kod na czas.
 
@@ -26,7 +27,8 @@ Symulacja odbywa się na planszy o określonych rozmiarach, zawierającą pewną
 
 Final project of laboratory classes in Computational Physics.
 This program simulates the spread of a hypothetical disease.
-This in this repo ptobably leaves a lot to be desired, especially if you're a Java developer with some experience, I am really sorry about that.
+
+Code in this repo ptobably leaves a lot to be desired, especially if you're a Java developer with some experience, I am really sorry about that.
 In my defence, this is my first bigger Java project, and I had to finish this code quite quickly.
 
 The SIRS model is a simple epidemiological model and an extension of the SIR model.
