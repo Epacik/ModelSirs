@@ -437,7 +437,7 @@ public class MainViewController {
                 return;
             }
 
-            infectionsAgentsNumber = limit(infectionsAgentsNumber, 100.0, 0.0)
+            infectionsAgentsNumber = limit(infectionsAgentsNumber, 100.0, 0.0);
 
             mainMap.setMap(mapWidth, mapHeight);
 
