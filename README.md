@@ -2,7 +2,7 @@
 
 [English below](#English)
 
-##### Polski
+### Polski
 
 Projekt zaliczeniowy z zajęć laboratoryjnych z Fizyki komputerowej.
 Program ten służy do symulacji rozprzestrzeniania się pewnej hipotetycznej choroby.
@@ -23,7 +23,7 @@ Symulacja odbywa się na planszy o określonych rozmiarach, zawierającą pewną
 
 
 
-##### English
+### English
 
 Final project of laboratory classes in Computational Physics.
 This program simulates the spread of a hypothetical disease.
