@@ -35,6 +35,16 @@ public class MainViewController {
     @FXML
     private MainMap mainMap;
 
+    /**
+     * this gets called after UI is initialized
+     */
+    @FXML
+    public void initialize() {
+        animationTimer.start();
+
+        resetSimulation();
+    }
+
     Agent[][] agents = new Agent[10][10];
 
     private static final Logger logger = LoggerFactory.getLogger(MainMap.class);
@@ -78,7 +88,7 @@ public class MainViewController {
 
         @Override
         public void handle(long now) {
-
+            {
             if (cancelExecution.get()) {
                 animationTimer.stop();
                 return;
@@ -105,18 +115,11 @@ public class MainViewController {
                     ";\n Ozdrowieni: " + recovered + "; Martwi: " + dead +
                     ";\n Pokrycie agentami: " + df.format(coverageByAgents * 100) + "%; Zasięg zarażania: " + infectionRange +
                     ";\n Szansa na: [ zarażenie: " + df.format(chanceToGetInfected) + "%; wyzdrowienie: " + df.format(chanceToRecover) + "%; śmierć: " + df.format(chanceToDie) + "%; ponowną podatność: " + df.format(chanceToGetSusceptible) + "% ]");
+            }
         }
     };
 
-    /**
-     * this gets called after UI is initialized
-     */
-    @FXML
-    public void initialize() {
-        animationTimer.start();
 
-        resetSimulation();
-    }
 
     private Thread simThread = null;
     /**
@@ -507,8 +510,6 @@ public class MainViewController {
         thread.start();
     }
 
-
-
     private <T extends Number & Comparable<T>> T limit(T number, T max, T min) {
         if(number.compareTo(max) > 0){
             number = max;
@@ -518,7 +519,6 @@ public class MainViewController {
         }
         return number;
     }
-
 
     /**
      * Stops the simulation and UI updates

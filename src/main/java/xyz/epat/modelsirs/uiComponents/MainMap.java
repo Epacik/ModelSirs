@@ -161,7 +161,6 @@ public class MainMap extends Region {
      * Start drawing the map
      */
     private void startAnimation(){
-
         animationTimer.start();
     }
 
